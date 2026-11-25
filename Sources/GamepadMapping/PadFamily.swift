@@ -3,7 +3,7 @@ import Foundation
 /// The pad family a physical input profile belongs to. Decides what printed labels and
 /// bare "Button <n>" names mean: the N64 pad's A/B are its two face buttons, while the
 /// SNES pad's B/A/Y/X are the RetroPad layout.
-public enum PadFamily: String, CaseIterable, Sendable {
+@frozen public enum PadFamily: String, CaseIterable, Sendable {
     case generic
     /// Nintendo Switch Online N64 controller (vendor name "N64 Controller").
     case n64

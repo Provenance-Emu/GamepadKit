@@ -5,7 +5,7 @@ import GameController
 public struct PhysicalProfileConfiguration: Sendable {
     /// Which of the wrapper's pause callbacks the deprecated
     /// `GCController.controllerPausedHandler` also fires for.
-    public enum LegacyPausedHandler: Sendable, Equatable {
+    @frozen public enum LegacyPausedHandler: Sendable, Equatable {
         /// Never. The app listens to ``PhysicalProfileController/onPauseRequested``.
         case never
         /// Only for ``PauseTrigger/home``.
@@ -15,14 +15,14 @@ public struct PhysicalProfileConfiguration: Sendable {
     }
 
     /// Where the wrapper keeps its `playerIndex`.
-    public enum PlayerIndexStorage: Sendable, Equatable {
+    @frozen public enum PlayerIndexStorage: Sendable, Equatable {
         /// On the wrapper, forwarded to the real pad on every set.
         case wrapperForwardingToBase
         /// On the real pad only; the wrapper reads it back from there.
         case base
     }
 
-    public enum LogLevel: Sendable, Equatable {
+    @frozen public enum LogLevel: Sendable, Equatable {
         /// Once per wrapped pad: its family, pause trigger and bindings.
         case info
         /// Once per button press.

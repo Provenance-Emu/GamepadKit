@@ -9,7 +9,7 @@ import GameController
 /// one shared slot a menu teardown would unbind gameplay input.
 public final class SynthesizedButtonInput: GCControllerButtonInput, @unchecked Sendable {
     /// Which of the two handlers hears about a change first.
-    public enum HandlerOrder: Sendable, Equatable {
+    @frozen public enum HandlerOrder: Sendable, Equatable {
         /// `valueChangedHandler`, then `pressedChangedHandler`. iFly.
         case valueThenPressed
         /// `pressedChangedHandler`, then `valueChangedHandler`. iCube.
