@@ -1,7 +1,13 @@
 # GamepadKit
 
-Controller handling shared by Provenance, iFly and iCube. A first cut (`0.1.0`); no app
-depends on it yet. Read [docs/PROPOSAL.md](docs/PROPOSAL.md) first.
+Controller handling shared by Provenance, iFly and iCube: each app wraps the pads iOS
+exposes without an extended gamepad through this package and keeps only its own
+`PhysicalProfileConfiguration`. [docs/PROPOSAL.md](docs/PROPOSAL.md) is the design and
+the comparison of the three copies it replaced.
+
+Version tags are prebuilt XCFrameworks
+([how releases work](https://github.com/Provenance-Emu/.github/blob/main/docs/xcframework-releases.md));
+`main` builds from source. iOS 17, tvOS 17, Mac Catalyst 17.
 
 Two modules:
 
@@ -28,8 +34,11 @@ if PhysicalProfileController.isNeeded(for: controller, configuration: configurat
 }
 ```
 
-The configuration each app would use to match its current behaviour is in
-`Tests/GamepadKitTests/AppConfigurations.swift`.
+The three apps' configurations are mirrored in
+`Tests/GamepadKitTests/AppConfigurations.swift`, and the wrapper is tested under each.
+
+An app whose core binds the same pad from its own table (iCube's is in C++) passes
+`bindingsResolver`, so the wrapper and the core cannot disagree about a button.
 
 ## D-pad as stick
 

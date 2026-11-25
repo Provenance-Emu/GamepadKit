@@ -113,10 +113,14 @@ public struct PhysicalProfileMapping: Sendable, Equatable {
     ///   - buttonNames: the keys of `physicalInputProfile.buttons`.
     ///   - directionNames: the keys of `physicalInputProfile.dpads`.
     ///   - axisNames: the keys of `physicalInputProfile.axes`.
+    ///   - directionAliases: other names of the direction elements, when the caller
+    ///     passes one name per element. They bind nothing; they only mark buttons
+    ///     named after them ("Hat Switch Up") as halves of a direction element.
     public func genericBindings(
         buttonNames: [String],
         directionNames: [String],
-        axisNames: [String] = []
+        axisNames: [String] = [],
+        directionAliases: [String] = []
     ) -> [String: GamepadInput] {
         // Names. A direction element takes only a direction input and a button only a
         // button input, so a button that happens to be called "Hat" cannot leave the
@@ -138,7 +142,7 @@ public struct PhysicalProfileMapping: Sendable, Equatable {
             taken.insert(input)
         }
 
-        let directionPrefixes = directionNames.map { Self.normalize($0) + " " }
+        let directionPrefixes = (directionNames + directionAliases).map { Self.normalize($0) + " " }
         let leftover = buttonNames.filter { name in
             guard result[name] == nil, !directions.contains(name) else { return false }
             let normalized = Self.normalize(name)
@@ -162,13 +166,45 @@ public struct PhysicalProfileMapping: Sendable, Equatable {
         return result
     }
 
-    /// "Button 2" before "Button 10"; other names alphabetically, after the numbered ones.
+    /// Bare button numbers first, then other names ordered by prefix and trailing number.
     private static func naturalOrder(_ lhs: String, _ rhs: String) -> Bool {
-        switch (buttonIndex(lhs), buttonIndex(rhs)) {
-        case let (left?, right?): return left != right ? left < right : lhs < rhs
-        case (_?, nil): return true
-        case (nil, _?): return false
-        case (nil, nil): return lhs < rhs
+        naturalKey(lhs) < naturalKey(rhs)
+    }
+
+    /// Sort key for ``naturalOrder``: bare "Button n" names first, then by prefix and
+    /// trailing number, so "Generic Button 2" comes before "Generic Button 10".
+    private struct NaturalKey: Comparable {
+        var group: Int
+        var prefix: String
+        var index: Int
+        var name: String
+
+        static func < (lhs: NaturalKey, rhs: NaturalKey) -> Bool {
+            (lhs.group, lhs.prefix, lhs.index, lhs.name) < (rhs.group, rhs.prefix, rhs.index, rhs.name)
+        }
+    }
+
+    private static func naturalKey(_ name: String) -> NaturalKey {
+        if let index = buttonIndex(name) { return NaturalKey(group: 0, prefix: "", index: index, name: name) }
+        let normalized = normalize(name)
+        let digits = normalized.reversed().prefix { $0.isASCII && $0.isNumber }
+        if let index = Int(String(digits.reversed())) {
+            return NaturalKey(group: 1, prefix: String(normalized.dropLast(digits.count)), index: index, name: name)
+        }
+        return NaturalKey(group: 1, prefix: normalized, index: -1, name: name)
+    }
+
+    /// Selects one name for a physical element before assigning positional slots.
+    public func preferredName(amongAliases aliases: [String], pad: PadFamily = .generic) -> String? {
+        func rank(_ name: String) -> Int {
+            if table.standardNames[Self.normalize(name)] != nil { return 0 }
+            return input(forElementNamed: name, pad: pad) == nil ? 2 : 1
+        }
+
+        return aliases.min { lhs, rhs in
+            let left = rank(lhs)
+            let right = rank(rhs)
+            return left == right ? Self.naturalOrder(lhs, rhs) : left < right
         }
     }
 
@@ -179,15 +215,22 @@ public struct PhysicalProfileMapping: Sendable, Equatable {
     ///   - buttonNames: the keys of `physicalInputProfile.buttons`.
     ///   - directionNames: the keys of `physicalInputProfile.dpads`.
     ///   - axisNames: the keys of `physicalInputProfile.axes`.
+    ///   - directionAliases: see ``genericBindings(buttonNames:directionNames:axisNames:directionAliases:)``.
     public func resolveBindings(
         pad: PadFamily,
         elementNames: [String],
         buttonNames: [String],
         directionNames: [String],
-        axisNames: [String]
+        axisNames: [String],
+        directionAliases: [String] = []
     ) -> [String: GamepadInput] {
         guard pad == .generic else { return bindings(forElementNames: elementNames, pad: pad) }
-        return genericBindings(buttonNames: buttonNames, directionNames: directionNames, axisNames: axisNames)
+        return genericBindings(
+            buttonNames: buttonNames,
+            directionNames: directionNames,
+            axisNames: axisNames,
+            directionAliases: directionAliases
+        )
     }
 
     // MARK: Usability

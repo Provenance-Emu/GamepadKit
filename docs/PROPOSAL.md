@@ -1,7 +1,8 @@
 # GamepadKit: one controller package for iFly, iCube and Provenance
 
-Status: proposal with a working first cut, pushed to `Provenance-Emu/GamepadKit` (public).
-Tagged `0.1.0`, MIT. None of the three apps depends on it. Written 2026-11-24.
+Updated 2026-11-25. Adoption status: 0.3.0 is the first binary release, and the three
+apps adopt it in one pull request each (section 3 was written before that and gives the
+order first proposed). `0.2.0` is a source-only tag from before the release workflow.
 
 ## Recommendation
 
@@ -13,8 +14,8 @@ Yes, make controllers a shared package, and start with the two layers built here
   generic-pad fallback is in neither of the other two.
 - The parts that really differ between apps are small and nameable: the name table, where
   a button lands, how pause is detected and delivered, and which pads get wrapped. In this
-  package each one is a value the app passes in. The three apps' own test suites pass
-  against it unchanged in substance (105 tests).
+  package each one is a value the app passes in. Ported controller tests exercise all three configurations. The iCube profile-loader tests
+  stay with Dolphin because they exercise its persisted bindings.
 - iFly should adopt last, after 1.0 ships. Nothing here needs iFly to change now.
 
 The name is **GamepadKit**. The app-neutral shared packages are named `<Thing>Kit`
@@ -26,20 +27,20 @@ view controllers, and Apple owns "GameController".
 
 | App | Code | Version |
 |---|---|---|
-| iFly | `Sources/Core/Input/PhysicalProfile/` (10 files), `Sources/Core/Input/Clamshell/` | develop `7fffe2160` |
-| Provenance | `PVSupport/Sources/PVSupport/Controller/PhysicalProfile/` (3 files) | branch `claude/eager-mayer-1f10ef`, `13777401fe` (the generic-pad port, committed, not merged) |
-| iCube | `Source/iOS/App/Common/Swift/Controllers/PhysicalProfile/` (2 files), `Source/Core/InputCommon/ControllerInterface/iOS/PhysicalProfileMapping.{h,cpp}`, `DOLPhysicalProfileBridge` | develop `aa9ff9ac13` plus the **uncommitted** generic-pad port in worktree `claude/reverent-golick-ae1cf2` |
+| iFly | `Sources/Core/Input/PhysicalProfile/` (10 files), `Sources/Core/Input/Clamshell/` | `6a9e758a5` (controller tests unchanged since `7fffe2160`) |
+| Provenance | `PVSupport/Sources/PVSupport/Controller/PhysicalProfile/` (3 files) | `claude/eager-mayer-1f10ef` at `8d3ed75f87` (mapping tests unchanged since `13777401fe`) |
+| iCube | `Source/iOS/App/Common/Swift/Controllers/PhysicalProfile/` (2 files), `Source/Core/InputCommon/ControllerInterface/iOS/PhysicalProfileMapping.{h,cpp}`, `DOLPhysicalProfileBridge` | generic-pad branch at `90ea3cf870`, merged in `ced93a65f1` (#130), and `feat/dpad-as-stick` at `854ca85041` (#131) |
 
-The iCube port was still being written when it was read. Its tests are copied into this
-package as they stood; if that session changes them before it lands, re-copy
-(`Tests/GamepadMappingTests/ICubeMappingTests.swift` says how).
+The current comparison uses the local branch tips and the sibling hand-over notes.
+The latest iCube tests cover alias deduplication before assignment, natural ordering of
+prefixed names, and the native D-pad ramp.
 
 ## 1. Comparison of the three copies
 
 ### 1.1 Equivalent in intent
 
-These do the same job in all three apps and differ only in names, access level and
-formatting.
+These pieces share a purpose across the three apps. The tables and runtime behavior have
+the app-specific differences described below. No complete implementation type is byte-for-byte identical.
 
 | Piece | iFly | Provenance | iCube |
 |---|---|---|---|
@@ -118,7 +119,7 @@ remote); iCube refuses any generic pad that has a micro profile.
 
 ### 1.3 What each app needs that the others do not
 
-- **iFly:** the Dreamcast routing above; the lone-Select tap; the clamshell-dock catalog
+- **iFly:** the Dreamcast routing above; the lone-Select tap; the cover-height catalog for clamshell docks
   and the window-shortening `ClamshellScreenCover`; handing the wrapper to flycast's
   `ios_gamepad_add_controller`, which holds it weakly.
 - **iCube:** the mapping in C++ for the core; MFi input-name strings ("L Stick", "R Stick
@@ -156,12 +157,11 @@ On adoption each app deletes:
 - **iCube:** nothing by itself. Its Swift side has no table to delete; the table is in
   C++. See open decision 2.
 
-Risk: low. The layer is pure and each app's existing tests run against it here. The one
-behaviour change is the kind check taken from iCube: in the positional fallback a button
-can no longer claim a direction input by name, or a direction element a button input.
-Before, such an element was bound in the table and then dead in the wrapper (the element
-cast fails), so this can only turn a dead control into a working one. It is the single
-place the package does not reproduce iFly's and Provenance's copies exactly.
+Adoption risk is low for named inputs and higher for generic HID profiles. Kind checks
+reject a button named “Hat” as a direction source. The iCube sort keeps “Generic Button 2”
+ahead of “Generic Button 10”. In layer (b), alias selection happens before assigning slots,
+so one physical button cannot claim two positions. iFly and Provenance should compare
+bindings for numbered HID pads against saved remaps before enabling these fixes.
 
 ### Layer (b): `GamepadKit`. Built.
 
@@ -174,8 +174,7 @@ Imports GameController and re-exports layer (a).
 | `PhysicalProfileConfiguration` | everything that differs per app: table, wrap policy, pause policy, router, hold-back, exposure, system-gesture set, legacy paused handler, handler order, player-index storage, unnamed-pad name, remote test, log sink |
 | `PhysicalProfileControllerRegistry` | lock-protected wrapper store with `substituting(_:)` |
 
-The package ships no app's configuration. The three configurations that reproduce today's
-behaviour are in `Tests/GamepadKitTests/AppConfigurations.swift`, including iFly's
+The package ships no app's configuration. The three configurations that capture each app’s routing are in `Tests/GamepadKitTests/AppConfigurations.swift`, including iFly's
 Dreamcast router (about 30 lines), and are what each adoption PR would move into the app.
 The wrapper is tested end to end under all three, against a fake pad built from the
 package's own settable elements.
@@ -189,7 +188,7 @@ On adoption each app deletes:
   `PVIsPhysicalProfileController` to look for the new Objective-C class name
   (`GPKPhysicalProfileController`; `base` stays reachable by KVC).
 - **iCube:** `PhysicalProfileController.swift` and `SynthesizedGamepad.swift` (about 530
-  lines with the port in progress), and `SelectStartChord`. It keeps the micro-gamepad Menu neutering and the no-op
+  lines in the generic-pad port), and `SelectStartChord`. It keeps the micro-gamepad Menu neutering and the no-op
   paused handler as a few lines run after wrapping, and adds the `DOLPhysicalBaseController`
   conformance in an extension.
 
@@ -201,7 +200,7 @@ an SNES pad and a plain HID pad. The wrapper is `@unchecked Sendable` with unsyn
 state touched from the GameController handler queue, exactly as all three copies are
 today; the package does not make that better or worse.
 
-### Added after the first cut: D-pad as stick (0.1.0 + 1)
+### D-pad as stick in 0.2.0
 
 A pad with a D-pad and no stick cannot play games that read only the stick, which is
 most of the GameCube and Dreamcast libraries. `DpadStickSettings` on the configuration
@@ -212,10 +211,12 @@ or down) that cycles the mode during play. The maths is in layer (a) (`DpadStick
 pure, clock passed in); the wrapper applies it and runs a timer on the pad's handler queue
 while a ramp is moving.
 
-It is off unless an app sets it, so it changes nothing for an app that adopts the package
-as is. No app has it today; this is new behaviour, not a port, and it has not been
-tried with a real pad. Each app still needs a setting, a place to show the mode, and
-somewhere to save it per pad.
+The Swift feature is opt-in. iCube’s branch implements the ramp in Dolphin’s native
+controller path and uses a GameCube profile-loader fallback. With one axis fully held and
+another newly pressed, Dolphin applies a fixed diagonal factor and GamepadKit scales the
+vector only as far as the unit circle. Aligning these would change steering feel. The
+ported assertions cover the shared ramp cases and record the Swift result for the staggered
+diagonal. Dolphin’s nine profile-loader tests remain with its C++ binding and storage path.
 
 ### Layer (c): candidates for later
 
@@ -223,7 +224,7 @@ somewhere to save it per pad.
 |---|---|---|
 | **Case / clamshell controllers** | iFly: `ClamshellDockCatalog` (FlipPad, Pocket Taco, by name, with cover height) and `ClamshellScreenCover`. Provenance: `CaseControllerDetector` (380 lines; Pocket Taco, Soolra, passive cases matched through skins). Two catalogs of the same hardware. | **Next after (b).** Merge the two catalogs in layer (a), keyed by name with an optional cover height. Move `ClamshellScreenCover` into a small UIKit target once a FlipPad has been measured; it is untested on hardware today. |
 | **Pause triggers** | Provenance: `PauseMenuTrigger` and `PauseMenuTriggerMonitor` (touchpad click, share button, L3 + R3, Select + Start, Home, lone Menu; user-selectable). iCube: `PauseGestureTracker` (345 lines, shoulder + Menu gestures, Menu press ownership). iFly: fixed bindings in `GameControllerManager`. | **Yes, as its own step.** The pure part (the trigger enum and the tracker here) is already in layer (a) and should grow to cover Provenance's list. The monitors stay per app until two apps want the same one. This is where "menu handling on tvOS" belongs. |
-| **tvOS Menu handling** | Three different answers to "who owns a Menu press": iCube's `MenuPressOwnership`, Provenance's monitor, iFly's hard-bound Menu pause. | **Share the rule, not the code, for now.** Write the ownership rule down once and port iCube's `MenuPressOwnership` (pure, about 20 lines) into layer (a). Do not try to unify the view-controller plumbing. |
+| **tvOS Menu handling** | Three different answers to "who owns a Menu press": iCube's `MenuPressOwnership`, Provenance's monitor, iFly's hard-bound Menu pause. | **Share the pure ownership rule first.** Port iCube’s `MenuPressOwnership` into layer (a) after checking system Menu behavior on Apple TV. Each app keeps its view-controller plumbing. |
 | **Gyro and touchpad** | Provenance: `GyroMouseAdapter` (403 lines, tested), `ControllerPointerRouter`, `ControllerMotionRouter`. iCube: `GyroPointerMath` (pure), `PointerSource`, `RemotePointerBinding`. | **Share the maths only.** Dead zone, low-pass and accumulate-to-cursor are pure and duplicated; they fit a `GamepadMotion` target with no GameController import. The adapters are bound to each app's core interface (`MouseResponder`, Wii IR) and stay where they are. |
 | **Light bar** | Provenance only: `ControllerLightBarManager` (331 lines). | **Move when a second app wants it.** It is self-contained and would move as is. Not worth a package dependency for one consumer. |
 | **iCade** | Provenance only: 12 files, 1,150 lines in `PVSupport/Controller/iCade`. | **Leave in Provenance.** Old, working, one consumer, and keyboard-driven rather than GameController-driven. The one useful step: rebuild its elements on the package's `Synthesized*` classes when Provenance adopts layer (b), which removes the shared handler slot. |
@@ -244,8 +245,8 @@ somewhere to save it per pad.
    move, the test of success is that `AppConfigurations.iFly()` plus the package behave as
    iFly does today.
 
-Tagged `0.1.0` on 2026-11-24, MIT licensed. Consume by URL and tag, as the other shared
-packages are.
+After the owner approves adoption, pin consumers by URL and tag, as with SkinKit and
+ContinuityKit.
 
 ## 4. Decisions that are the owner's
 
@@ -270,8 +271,8 @@ packages are.
 5. **Button handler order.** iFly fires value then pressed, iCube pressed then value. The
    package makes it a setting. If nothing in iCube depends on its order, drop the setting
    and use one.
-6. **Package name and home.** GamepadKit under `Provenance-Emu`, as proposed, or something
-   else.
+6. **D-pad ramp behavior.** Decide whether to align the staggered diagonal between Swift
+   and Dolphin after comparing steering on hardware.
 7. **Licence.** Decided 2026-11-24: MIT. iCube's own files carry GPL-2.0-or-later headers;
    the GameCube table and the kind-check rule here were written fresh from them, so if
    iCube's copy is ever not solely yours to relicense, revisit those two pieces.
@@ -301,33 +302,35 @@ a place where the three apps do different things and no evidence here says which
 
 ```
 GamepadKit/
-  Package.swift                 iOS 17.4, tvOS 17.4, Mac Catalyst 17.4 (macOS 14 for host tests), Swift 6
+  Package.swift                 iOS 17, tvOS 17, Mac Catalyst 17 (macOS 14 for host tests), Swift 6
   Sources/GamepadMapping/       layer (a), 10 files
   Sources/GamepadKit/           layer (b), 8 files
   Tests/GamepadMappingTests/    iFly's, Provenance's and iCube's mapping tests, plus policy tests
   Tests/GamepadKitTests/        iCube's element tests, the wrapper end to end, the three app configurations
 ```
 
-Checked on 2026-11-24:
+Xcode’s Swift toolchain passed 127 host tests with `xcrun swift test` (99 mapping,
+28 GameController). The `GamepadKit` scheme, including its mapping dependency,
+built for iOS Simulator, tvOS Simulator, and Mac Catalyst. The manifest declares
+Swift 6 and the deployment floors listed above. The wrapper tests use fake controllers.
+Hardware validation is pending.
 
-- `xcrun swift test`: 105 tests, 0 failures (87 mapping, 18 GameController layer).
-- `xcodebuild build` of both library targets for iOS Simulator, tvOS Simulator and Mac
-  Catalyst: all succeed with no warnings, Swift 6 language mode.
-- `swiftlint`: clean (the verbatim-ported test files are excluded so they stay diffable).
+| Package test file | Source |
+|---|---|
+| `IFlyMappingTests.swift`, `ClamshellDockCatalogTests.swift` | iFly `Tests/` |
+| `ProvenanceMappingTests.swift` | Provenance `PVSupportTests/PVPhysicalProfileMappingTests.swift` |
+| `ICubeMappingTests.swift`, `ICubeSynthesizedElementTests.swift` | iCube `DolphiniOSTests/PhysicalProfileMappingTests.swift` |
+| `PhysicalProfileControllerTests.swift` | Wrapper tests, including iCube’s unnamed-pad expectations and alias delivery |
 
-Not checked: anything on a device or with a real controller. The wrapper tests use a fake
-pad. Use `xcrun swift`, not a bare `swift`: on this machine the first `swift` on `PATH` is
-a 5.3 toolchain.
+The iCube shim exercises the Swift table and policy through iCube-style names. It does
+not exercise the real Objective-C bridge or the C++ core. The unnamed-category test
+covers the empty-string fallback because `GCController.productCategory` is nonoptional in
+Swift. Keep native bridge and profile-loader tests in iCube.
 
-Where the ported tests came from:
-
-| Package test file | Source | Tests |
-|---|---|---|
-| `IFlyMappingTests.swift`, `ClamshellDockCatalogTests.swift` | iFly `Tests/`, develop `7fffe2160` | 11 + 2 |
-| `ProvenanceMappingTests.swift` | Provenance `PVSupportTests/PVPhysicalProfileMappingTests.swift`, `13777401fe` | 33 |
-| `ICubeMappingTests.swift`, `ICubeSynthesizedElementTests.swift` | iCube `DolphiniOSTests/PhysicalProfileMappingTests.swift`, uncommitted worktree copy | 36 + 6 |
-
-One iCube test was left out (`testUnnamedPadIsNamedByItsProductCategory`): its expected
-text is iCube's own and is now passed in. iCube's tests run through
-`Tests/GamepadMappingTests/ICubeShims.swift`, which maps iCube's bridge calls and MFi
-names onto the package; the test bodies are otherwise unchanged apart from type renames.
+For later adoption of layer (c), remove only the pieces the app replaces. Provenance
+could remove duplicate catalog entries and motion math while retaining its mouse and
+pointer adapters. iCube could remove duplicate gyro math and the pure Menu ownership
+rule while retaining Dolphin profile storage, native motion and tvOS input ownership.
+iFly could remove duplicated catalog data and a UIKit cover helper if measured cover
+geometry becomes shared. Shared motion or Menu rules can change calibration and Back
+behavior, so verify both on hardware before deleting either implementation.

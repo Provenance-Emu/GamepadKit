@@ -55,11 +55,20 @@ public struct PhysicalProfileConfiguration: Sendable {
     /// category; nil leaves it unnamed. Apps key remaps and mapping files on the
     /// vendor name, and every unnamed pad would otherwise share one entry.
     public var unnamedPadName: (@Sendable (_ productCategory: String) -> String)?
+    /// The wrapper's `vendorName`, in place of the pad's own name and of
+    /// ``unnamedPadName``; nil (the default) uses those. For an app whose core already
+    /// names every pad (iCube's `MFiController::NameFor`), so the two names match.
+    public var padName: (@Sendable (GCController) -> String?)?
     /// D-pad-as-stick emulation; nil (the default) leaves the D-pad a D-pad, exactly as
     /// without the feature.
     public var dpadStick: DpadStickSettings?
     /// An extra remote test on top of the product category (iCube's `isMenuRemote`).
     public var isRemote: (@Sendable (GCController) -> Bool)?
+    /// Resolves a pad's bindings (element name → input) in place of ``mapping``; nil (the
+    /// default) resolves through ``mapping``. For an app whose core binds the same pad
+    /// from its own table (iCube's is in C++), so the wrapper and the core cannot
+    /// disagree. ``mapping`` still decides the pad's family.
+    public var bindingsResolver: (@Sendable (GCController, PadFamily) -> [String: GamepadInput])?
     public var log: (@Sendable (LogLevel, String) -> Void)?
 
     public init(
@@ -77,8 +86,10 @@ public struct PhysicalProfileConfiguration: Sendable {
         unnamedPadName: (@Sendable (_ productCategory: String) -> String)? = {
             PhysicalProfileMapping.fallbackVendorName(productCategory: $0)
         },
+        padName: (@Sendable (GCController) -> String?)? = nil,
         dpadStick: DpadStickSettings? = nil,
         isRemote: (@Sendable (GCController) -> Bool)? = nil,
+        bindingsResolver: (@Sendable (GCController, PadFamily) -> [String: GamepadInput])? = nil,
         log: (@Sendable (LogLevel, String) -> Void)? = nil
     ) {
         self.mapping = mapping
@@ -93,8 +104,10 @@ public struct PhysicalProfileConfiguration: Sendable {
         self.buttonHandlerOrder = buttonHandlerOrder
         self.playerIndexStorage = playerIndexStorage
         self.unnamedPadName = unnamedPadName
+        self.padName = padName
         self.dpadStick = dpadStick
         self.isRemote = isRemote
+        self.bindingsResolver = bindingsResolver
         self.log = log
     }
 }

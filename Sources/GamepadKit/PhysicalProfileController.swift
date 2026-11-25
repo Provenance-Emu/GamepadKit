@@ -81,8 +81,20 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
             hasExtendedGamepad: false,
             hasMicroGamepad: controller.microGamepad != nil,
             isRemote: configuration.isRemote?(controller) ?? false,
-            bindings: resolveBindings(for: controller, pad: pad, mapping: configuration.mapping)
+            bindings: resolveBindings(for: controller, pad: pad, configuration: configuration)
         ))
+    }
+
+    /// Element name → input for `controller`: from the configuration's
+    /// ``PhysicalProfileConfiguration/bindingsResolver`` when it has one, otherwise
+    /// through its mapping.
+    public static func resolveBindings(
+        for controller: GCController,
+        pad: PadFamily,
+        configuration: PhysicalProfileConfiguration
+    ) -> [String: GamepadInput] {
+        configuration.bindingsResolver?(controller, pad)
+            ?? resolveBindings(for: controller, pad: pad, mapping: configuration.mapping)
     }
 
     /// Element name → input for `controller`.
@@ -91,13 +103,36 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
         pad: PadFamily,
         mapping: PhysicalProfileMapping
     ) -> [String: GamepadInput] {
-        let profile = controller.physicalInputProfile
+        let groups = Dictionary(grouping: controller.physicalInputProfile.elements) {
+            ObjectIdentifier($0.value)
+        }
+        var elementNames: [String] = []
+        var buttonNames: [String] = []
+        var directionNames: [String] = []
+        var axisNames: [String] = []
+        // A direction element's other names bind nothing, but still mark the buttons
+        // named after them ("Hat Switch Up") as its halves.
+        var directionAliases: [String] = []
+        for aliases in groups.values {
+            guard let name = mapping.preferredName(amongAliases: aliases.map { $0.key }, pad: pad),
+                  let element = aliases.first?.value else { continue }
+            elementNames.append(name)
+            switch element {
+            case is GCControllerButtonInput: buttonNames.append(name)
+            case is GCControllerDirectionPad:
+                directionNames.append(name)
+                directionAliases.append(contentsOf: aliases.map { $0.key }.filter { $0 != name })
+            case is GCControllerAxisInput: axisNames.append(name)
+            default: break
+            }
+        }
         return mapping.resolveBindings(
             pad: pad,
-            elementNames: Array(profile.elements.keys),
-            buttonNames: Array(profile.buttons.keys),
-            directionNames: Array(profile.dpads.keys),
-            axisNames: Array(profile.axes.keys)
+            elementNames: elementNames,
+            buttonNames: buttonNames,
+            directionNames: directionNames,
+            axisNames: axisNames,
+            directionAliases: directionAliases
         )
     }
 
@@ -112,7 +147,7 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
     private func bind() {
         let profile = base.physicalInputProfile
         pad = configuration.mapping.family(vendorName: base.vendorName, productCategory: base.productCategory)
-        bindings = Self.resolveBindings(for: base, pad: pad, mapping: configuration.mapping)
+        bindings = Self.resolveBindings(for: base, pad: pad, configuration: configuration)
         pauseTrigger = configuration.pausePolicy.trigger(forBindings: bindings, family: pad)
         tracker = PauseTriggerTracker(trigger: pauseTrigger)
         let bound = Set(bindings.values)
@@ -135,7 +170,7 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
                 + "pause=\(String(describing: pauseTrigger)): \(described)")
         }
 
-        // `elements` can list one element under several names; each element drives exactly one input.
+        // The mapping names each element once; this guards a resolver that does not.
         var seen: Set<ObjectIdentifier> = []
         for (name, input) in bindings.sorted(by: { $0.key < $1.key }) {
             guard let element = profile.elements[name], seen.insert(ObjectIdentifier(element)).inserted else {
@@ -303,10 +338,12 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
     override public var extendedGamepad: GCExtendedGamepad? { synthesized }
     override public var microGamepad: GCMicroGamepad? { nil }
     override public var physicalInputProfile: GCPhysicalInputProfile { base.physicalInputProfile }
-    /// Never nil when the configuration names unnamed pads
-    /// (``PhysicalProfileConfiguration/unnamedPadName``).
+    /// The configuration's ``PhysicalProfileConfiguration/padName`` when it has one;
+    /// otherwise the pad's own name, and never nil when the configuration names
+    /// unnamed pads (``PhysicalProfileConfiguration/unnamedPadName``).
     override public var vendorName: String? {
-        base.vendorName ?? configuration.unnamedPadName?(base.productCategory)
+        if let padName = configuration.padName { return padName(base) }
+        return base.vendorName ?? configuration.unnamedPadName?(base.productCategory)
     }
 
     override public var productCategory: String { base.productCategory }
