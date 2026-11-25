@@ -1,6 +1,6 @@
 # GamepadKit: one controller package for iFly, iCube and Provenance
 
-Status: proposal with a working first cut, pushed to `Provenance-Emu/GamepadKit` (private).
+Status: proposal with a working first cut, pushed to `Provenance-Emu/GamepadKit` (public).
 No release is tagged and none of the three apps depends on it. Written 2026-11-24.
 
 ## Recommendation
@@ -228,8 +228,8 @@ today; the package does not make that better or worse.
    move, the test of success is that `AppConfigurations.iFly()` plus the package behave as
    iFly does today.
 
-Before step 1: tag `0.1.0` (the repository exists, private; see decision 7 before making
-it public). Consume by URL and
+Before step 1: tag `0.1.0`, and add a licence file (decision 7; the repository is public
+and has none). Consume by URL and
 tag, as the other shared packages are.
 
 ## 4. Decisions that are the owner's
@@ -259,7 +259,7 @@ tag, as the other shared packages are.
    else.
 7. **Licence.** iCube's files carry GPL-2.0-or-later headers; iFly's and Provenance's carry
    none. The package's code came from iFly's copy, with one rule (the kind check) and one
-   table re-expressed from iCube's. Pick the licence before the repository is public.
+   table re-expressed from iCube's. The repository is public without a licence file; pick one before the first tag.
 
 ## 5. What could not be reconciled
 
