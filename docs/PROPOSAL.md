@@ -201,6 +201,22 @@ an SNES pad and a plain HID pad. The wrapper is `@unchecked Sendable` with unsyn
 state touched from the GameController handler queue, exactly as all three copies are
 today; the package does not make that better or worse.
 
+### Added after the first cut: D-pad as stick (0.1.0 + 1)
+
+A pad with a D-pad and no stick cannot play games that read only the stick, which is
+most of the GameCube and Dreamcast libraries. `DpadStickSettings` on the configuration
+turns the D-pad into the left stick: three modes (D-pad, stick, both; "both" is the
+automatic choice for a pad with no stick), an optional ramp so a tap walks and a hold
+runs, an optional hold-to-walk modifier button, and an optional chord (Select + D-pad up
+or down) that cycles the mode during play. The maths is in layer (a) (`DpadStickEmulator`,
+pure, clock passed in); the wrapper applies it and runs a timer on the pad's handler queue
+while a ramp is moving.
+
+It is off unless an app sets it, so it changes nothing for an app that adopts the package
+as is. No app has it today; this is new behaviour, not a port, and it has not been
+tried with a real pad. Each app still needs a setting, a place to show the mode, and
+somewhere to save it per pad.
+
 ### Layer (c): candidates for later
 
 | Candidate | Today | Recommendation |

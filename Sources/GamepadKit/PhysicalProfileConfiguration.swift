@@ -55,6 +55,9 @@ public struct PhysicalProfileConfiguration: Sendable {
     /// category; nil leaves it unnamed. Apps key remaps and mapping files on the
     /// vendor name, and every unnamed pad would otherwise share one entry.
     public var unnamedPadName: (@Sendable (_ productCategory: String) -> String)?
+    /// D-pad-as-stick emulation; nil (the default) leaves the D-pad a D-pad, exactly as
+    /// without the feature.
+    public var dpadStick: DpadStickSettings?
     /// An extra remote test on top of the product category (iCube's `isMenuRemote`).
     public var isRemote: (@Sendable (GCController) -> Bool)?
     public var log: (@Sendable (LogLevel, String) -> Void)?
@@ -74,6 +77,7 @@ public struct PhysicalProfileConfiguration: Sendable {
         unnamedPadName: (@Sendable (_ productCategory: String) -> String)? = {
             PhysicalProfileMapping.fallbackVendorName(productCategory: $0)
         },
+        dpadStick: DpadStickSettings? = nil,
         isRemote: (@Sendable (GCController) -> Bool)? = nil,
         log: (@Sendable (LogLevel, String) -> Void)? = nil
     ) {
@@ -89,6 +93,7 @@ public struct PhysicalProfileConfiguration: Sendable {
         self.buttonHandlerOrder = buttonHandlerOrder
         self.playerIndexStorage = playerIndexStorage
         self.unnamedPadName = unnamedPadName
+        self.dpadStick = dpadStick
         self.isRemote = isRemote
         self.log = log
     }

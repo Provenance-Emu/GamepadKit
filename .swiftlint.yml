@@ -17,3 +17,5 @@ trailing_comma:
   mandatory_comma: false
 cyclomatic_complexity:
   ignores_case_statements: true
+type_body_length:
+  warning: 300

@@ -16,6 +16,8 @@ import GameController
 /// state of the real elements it stands in for.
 @objc(GPKPhysicalProfileController)
 public final class PhysicalProfileController: GCController, @unchecked Sendable {
+    deinit { rampTimer?.cancel() }
+
     /// The real controller. Its profile elements drive the synthesized gamepad.
     /// `@objc` so Objective-C bridges can reach it by KVC (Provenance's
     /// `PVIsPhysicalProfileController` does).
@@ -38,9 +40,24 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
     private var cUp = false, cDown = false, cLeft = false, cRight = false
     private var storedPlayerIndex: GCControllerPlayerIndex = .indexUnset
     private var pausedHandler: ((GCController) -> Void)?
-    private var tracker = PauseTriggerTracker(trigger: nil)
-    private var selectTap = LoneTapTracker(input: .options)
+    var tracker = PauseTriggerTracker(trigger: nil)
+    var selectTap = LoneTapTracker(input: .options)
     private var routingContext = RoutingContext(boundInputs: [], pauseTrigger: nil, family: .generic)
+    /// Fired when the D-pad mode changes, from the mode chord or from code.
+    public var onDpadModeChanged: (@Sendable (DpadMode) -> Void)?
+    /// What the D-pad drives. Always ``DpadMode/dpad`` unless the configuration turns
+    /// D-pad-as-stick on (``PhysicalProfileConfiguration/dpadStick``).
+    public var dpadMode: DpadMode {
+        get { storedDpadMode }
+        set { setDpadMode(newValue) }
+    }
+
+    var storedDpadMode: DpadMode = .dpad
+    var dpadEmulator = DpadStickEmulator()
+    var rawDpad: (x: Float, y: Float) = (0, 0)
+    var rampTimer: DispatchSourceTimer?
+    /// Seconds, monotonic. A variable so tests can stand in for the clock.
+    var clock: @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }
     /// Profile elements this wrapper installed handlers on, for ``unbind()``.
     private var boundElements: [GCControllerElement] = []
     /// Trigger axes seen below zero, so known to rest at -1 rather than 0.
@@ -105,6 +122,10 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
             .isExposed(.options, boundInputs: bound, pauseTrigger: pauseTrigger)
         synthesized.hasHome = configuration.homeExposure
             .isExposed(.home, boundInputs: bound, pauseTrigger: pauseTrigger)
+        if let dpadStick = configuration.dpadStick {
+            storedDpadMode = dpadStick.mode ?? DpadMode.automatic(boundInputs: bound)
+            dpadEmulator = DpadStickEmulator(response: dpadStick.response, modifierScale: dpadStick.modifierScale)
+        }
         synthesized.hasLeftThumbstickButton = bound.contains(.leftThumbstickButton)
         synthesized.hasRightThumbstickButton = bound.contains(.rightThumbstickButton)
         if let log = configuration.log {
@@ -129,9 +150,14 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
             guard let source = element as? GCControllerDirectionPad, let target = synthesized.pad(for: input) else {
                 return
             }
+            let emulatesStick = input == .dpad && configuration.dpadStick != nil
             source.valueChangedHandler = { @Sendable [weak self, weak target] _, x, y in
-                guard let self, let target, target.update(x: x, y: y) else { return }
-                self.synthesized.notify(target)
+                guard let self, let target else { return }
+                if emulatesStick {
+                    self.dpadChanged(x: x, y: y)
+                } else if target.update(x: x, y: y) {
+                    self.synthesized.notify(target)
+                }
             }
             boundElements.append(source)
             return
@@ -182,6 +208,8 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
             }
         }
         boundElements.removeAll()
+        stopRampTimer()
+        onDpadModeChanged = nil
         onPauseRequested = nil
         onSelectTap = nil
         pausedHandler = nil
@@ -200,6 +228,12 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
            selectTap.update(input, pressed: pressed, wasHeld: wasHeld, held: tracker.held),
            configuration.router.route(.options, routingContext) == nil {
             onSelectTap?()
+        }
+
+        if let dpadStick = configuration.dpadStick {
+            if input == dpadStick.modifier { refreshEmulatedStick() }
+            // Letting go of the mode chord hands the D-pad back to the game.
+            if input == dpadStick.modeChord, !pressed { applyDpad() }
         }
 
         guard let trigger = pauseTrigger, outcome != .forward else {

@@ -1,5 +1,5 @@
 import GameController
-import GamepadKit
+@testable import GamepadKit
 import XCTest
 
 /// The wrapper end to end, against a fake pad, under each app's configuration.
@@ -249,5 +249,152 @@ final class PhysicalProfileControllerTests: XCTestCase {
         pad.press("Button B")
         XCTAssertFalse(wrapper.extendedGamepad!.buttonA.isPressed)
         XCTAssertTrue(registry.substituting([pad])[0] === pad)
+    }
+}
+
+/// A clock a test can move.
+final class TestClock: @unchecked Sendable {
+    var now: TimeInterval = 100
+}
+
+/// D-pad-as-stick, for a pad with a D-pad and no stick.
+final class DpadStickControllerTests: XCTestCase {
+    private func flipPad() -> FakeController {
+        FakeController(vendorName: "8BitDo FlipPad", productCategory: "HID",
+                       buttons: ["Button A", "Button B", "Left Shoulder", "Button Options", "Button Menu"],
+                       dpads: ["Direction Pad"])
+    }
+
+    private func wrapper(
+        _ pad: FakeController,
+        _ settings: DpadStickSettings?,
+        clock: TestClock = TestClock()
+    ) -> PhysicalProfileController {
+        var configuration = AppConfigurations.iFly()
+        configuration.dpadStick = settings
+        let wrapper = PhysicalProfileController(wrapping: pad, configuration: configuration)
+        wrapper.clock = { clock.now }
+        return wrapper
+    }
+
+    private func move(_ pad: FakeController, x: Float, y: Float) {
+        pad.profile.fakeDpads["Direction Pad"]!.update(x: x, y: y)
+    }
+
+    func testWithoutTheSettingTheDpadIsOnlyADpad() {
+        let pad = flipPad()
+        let wrapper = wrapper(pad, nil)
+        move(pad, x: 1, y: 0)
+        XCTAssertEqual(wrapper.dpadMode, .dpad)
+        XCTAssertTrue(wrapper.synthesized.dpad.right.isPressed)
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.xAxis.value, 0)
+        wrapper.dpadMode = .both
+        XCTAssertEqual(wrapper.dpadMode, .dpad, "the mode cannot be set while the feature is off")
+    }
+
+    func testAPadWithNoStickStartsInBothAndDrivesTheStickOnTheUnitCircle() {
+        let pad = flipPad()
+        let wrapper = wrapper(pad, DpadStickSettings())
+        XCTAssertEqual(wrapper.dpadMode, .both)
+        var stickEvents = 0
+        wrapper.synthesized.leftThumbstick.valueChangedHandler = { _, _, _ in stickEvents += 1 }
+
+        move(pad, x: 1, y: 1)
+        XCTAssertTrue(wrapper.synthesized.dpad.up.isPressed)
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.xAxis.value, 0.7071, accuracy: 0.001)
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.yAxis.value, 0.7071, accuracy: 0.001)
+        XCTAssertEqual(stickEvents, 1)
+
+        move(pad, x: 0, y: 0)
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.xAxis.value, 0)
+        XCTAssertFalse(wrapper.synthesized.dpad.up.isPressed)
+    }
+
+    func testStickOnlyModeLeavesTheDpadAtRest() {
+        let pad = flipPad()
+        let wrapper = wrapper(pad, DpadStickSettings(mode: .leftStick))
+        move(pad, x: -1, y: 0)
+        XCTAssertFalse(wrapper.synthesized.dpad.left.isPressed)
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.xAxis.value, -1)
+    }
+
+    func testAPadWithItsOwnStickKeepsIt() {
+        let pad = FakeController(vendorName: nil, productCategory: "HID", buttons: ["Button A"],
+                                 dpads: ["Direction Pad", "Left Thumbstick"])
+        let wrapper = wrapper(pad, DpadStickSettings())
+        XCTAssertEqual(wrapper.dpadMode, .dpad, "automatic leaves a pad with a stick alone")
+        pad.profile.fakeDpads["Left Thumbstick"]!.update(x: 0.3, y: 0)
+        move(pad, x: 1, y: 0)
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.xAxis.value, 0.3)
+    }
+
+    func testSelectPlusDpadCyclesTheModeWithoutReachingTheGameOrCountingAsATap() {
+        let pad = flipPad()
+        let wrapper = wrapper(pad, DpadStickSettings(modeChord: .options))
+        let modes = Counter(), taps = Counter()
+        var seen: [DpadMode] = []
+        wrapper.onDpadModeChanged = { _ in modes.count += 1 }
+        wrapper.onSelectTap = { taps.count += 1 }
+
+        pad.press("Button Options")
+        move(pad, x: 0, y: 1)
+        seen.append(wrapper.dpadMode)
+        XCTAssertFalse(wrapper.synthesized.dpad.up.isPressed, "the game sees a D-pad at rest")
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.yAxis.value, 0)
+        move(pad, x: 0, y: 0)
+        move(pad, x: 0, y: 1)
+        seen.append(wrapper.dpadMode)
+        move(pad, x: 0, y: 0)
+        move(pad, x: 0, y: -1)
+        seen.append(wrapper.dpadMode)
+        move(pad, x: 0, y: 0)
+        pad.press("Button Options", false)
+
+        XCTAssertEqual(seen, [.dpad, .leftStick, .dpad], "from both: up, up, then down")
+        XCTAssertEqual(modes.count, 3)
+        XCTAssertEqual(taps.count, 0, "Select used for the chord is not Insert Coin")
+    }
+
+    func testLettingGoOfTheChordHandsAHeldDirectionBackToTheGame() {
+        let pad = flipPad()
+        let wrapper = wrapper(pad, DpadStickSettings(mode: .dpad, modeChord: .options))
+        move(pad, x: 1, y: 0)
+        pad.press("Button Options")
+        move(pad, x: 1, y: 0.1)
+        XCTAssertFalse(wrapper.synthesized.dpad.right.isPressed)
+        pad.press("Button Options", false)
+        XCTAssertTrue(wrapper.synthesized.dpad.right.isPressed)
+    }
+
+    func testRampAdvancesOnTicks() {
+        let pad = flipPad()
+        let clock = TestClock()
+        let wrapper = wrapper(pad, DpadStickSettings(mode: .leftStick, response: .ramp(start: 0.4, duration: 0.2)),
+                              clock: clock)
+        move(pad, x: 1, y: 0)
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.xAxis.value, 0.4, accuracy: 0.001)
+        clock.now += 0.1
+        wrapper.tick()
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.xAxis.value, 0.7, accuracy: 0.001)
+        clock.now += 0.5
+        wrapper.tick()
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.xAxis.value, 1, accuracy: 0.001)
+        move(pad, x: 0, y: 0)
+        wrapper.tick()
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.xAxis.value, 0)
+        wrapper.unbind()
+    }
+
+    func testModifierHalvesTheStickWhileHeldAndStillReachesTheGame() {
+        let pad = flipPad()
+        // iFly routes a shoulder to the trigger on this pad; the modifier is the physical button.
+        let wrapper = wrapper(pad, DpadStickSettings(mode: .leftStick, modifier: .leftShoulder))
+        move(pad, x: 0, y: -1)
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.yAxis.value, -1)
+        pad.press("Left Shoulder")
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.yAxis.value, -0.5)
+        XCTAssertTrue(wrapper.synthesized.leftTrigger.isPressed)
+        pad.press("Left Shoulder", false)
+        XCTAssertEqual(wrapper.synthesized.leftThumbstick.yAxis.value, -1)
     }
 }
