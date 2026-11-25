@@ -1,7 +1,7 @@
 # GamepadKit
 
-Controller handling shared by Provenance, iFly and iCube. A first cut: no release is
-tagged yet, and no app depends on it. Read [docs/PROPOSAL.md](docs/PROPOSAL.md) first.
+Controller handling shared by Provenance, iFly and iCube. A first cut (`0.1.0`); no app
+depends on it yet. Read [docs/PROPOSAL.md](docs/PROPOSAL.md) first.
 
 Two modules:
 
@@ -38,3 +38,7 @@ xcrun swift test
 ```
 
 Use `xcrun swift` so the Xcode toolchain is picked up (Swift 6 is required).
+
+## Licence
+
+MIT. See [LICENSE](LICENSE).
