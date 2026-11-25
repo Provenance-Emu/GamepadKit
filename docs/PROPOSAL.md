@@ -1,7 +1,7 @@
 # GamepadKit: one controller package for iFly, iCube and Provenance
 
-Status: proposal with a working first cut, in a local git repository. It has no remote,
-nothing is pushed, and none of the three apps depends on it. Written 2026-11-24.
+Status: proposal with a working first cut, pushed to `Provenance-Emu/GamepadKit` (private).
+No release is tagged and none of the three apps depends on it. Written 2026-11-24.
 
 ## Recommendation
 
@@ -228,7 +228,8 @@ today; the package does not make that better or worse.
    move, the test of success is that `AppConfigurations.iFly()` plus the package behave as
    iFly does today.
 
-Before step 1: create `Provenance-Emu/GamepadKit`, push, tag `0.1.0`. Consume by URL and
+Before step 1: tag `0.1.0` (the repository exists, private; see decision 7 before making
+it public). Consume by URL and
 tag, as the other shared packages are.
 
 ## 4. Decisions that are the owner's
