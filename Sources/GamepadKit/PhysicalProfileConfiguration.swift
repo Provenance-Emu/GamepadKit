@@ -60,6 +60,11 @@ public struct PhysicalProfileConfiguration: Sendable {
     public var dpadStick: DpadStickSettings?
     /// An extra remote test on top of the product category (iCube's `isMenuRemote`).
     public var isRemote: (@Sendable (GCController) -> Bool)?
+    /// Resolves a pad's bindings (element name → input) in place of ``mapping``; nil (the
+    /// default) resolves through ``mapping``. For an app whose core binds the same pad
+    /// from its own table (iCube's is in C++), so the wrapper and the core cannot
+    /// disagree. ``mapping`` still decides the pad's family.
+    public var bindingsResolver: (@Sendable (GCController, PadFamily) -> [String: GamepadInput])?
     public var log: (@Sendable (LogLevel, String) -> Void)?
 
     public init(
@@ -79,6 +84,7 @@ public struct PhysicalProfileConfiguration: Sendable {
         },
         dpadStick: DpadStickSettings? = nil,
         isRemote: (@Sendable (GCController) -> Bool)? = nil,
+        bindingsResolver: (@Sendable (GCController, PadFamily) -> [String: GamepadInput])? = nil,
         log: (@Sendable (LogLevel, String) -> Void)? = nil
     ) {
         self.mapping = mapping
@@ -95,6 +101,7 @@ public struct PhysicalProfileConfiguration: Sendable {
         self.unnamedPadName = unnamedPadName
         self.dpadStick = dpadStick
         self.isRemote = isRemote
+        self.bindingsResolver = bindingsResolver
         self.log = log
     }
 }

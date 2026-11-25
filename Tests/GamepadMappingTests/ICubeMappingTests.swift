@@ -1,9 +1,5 @@
-// A near-verbatim copy of iCube's `DolphiniOSTests/PhysicalProfileMappingTests.swift`
-// (develop aa9ff9ac13 plus the uncommitted generic-pad port on claude/reverent-golick-ae1cf2,
-// read 2026-11-24), running against the package's GameCube table through ICubeShims.swift.
-// Left out: `testUnnamedPadIsNamedByItsProductCategory`, whose text ("Unknown Controller")
-// is iCube's own and is passed in as `unnamedPadName`. The element tests are in
-// GamepadKitTests/ICubeSynthesizedElementTests.swift.
+// Port of iCube's DolphiniOSTests/PhysicalProfileMappingTests.swift at 854ca85041.
+// Bridge assertions use the Swift GameCube table through ICubeShims.swift.
 // Copyright 2026 iCube Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 import XCTest
@@ -442,5 +438,76 @@ final class ICubeMappingTests: XCTestCase {
     XCTAssertFalse(chord.update(.home, pressed: true))
     XCTAssertFalse(chord.update(.menu, pressed: true))
     XCTAssertTrue(chord.update(.options, pressed: true))
+  }
+
+  private func dpadStick(x: Int, xHeld: Double = 0, y: Int = 0, yHeld: Double = 0) -> CGPoint {
+    var emulator = DpadStickEmulator(response: .ramp(start: 0.4, duration: 0.2))
+    if yHeld > xHeld {
+      emulator.setDirection(x: 0, y: Float(y), at: -yHeld)
+      emulator.setDirection(x: Float(x), y: Float(y), at: -xHeld)
+    } else {
+      emulator.setDirection(x: Float(x), y: 0, at: -xHeld)
+      emulator.setDirection(x: Float(x), y: Float(y), at: -yHeld)
+    }
+    let stick = emulator.stick(at: 0)
+    return CGPoint(x: Double(stick.x), y: Double(stick.y))
+  }
+
+  func testButtonsNamedWithAPrefixAndANumberKeepTheirNumericOrder() {
+    let result = generic(buttons: (1 ... 12).map { "Generic Button \($0)" }, directions: ["Hat Switch"])
+    XCTAssertEqual(result["Generic Button 1"], .buttonA)
+    XCTAssertEqual(result["Generic Button 2"], .buttonB)
+    XCTAssertEqual(result["Generic Button 9"], .options)
+    XCTAssertEqual(result["Generic Button 10"], .menu)
+    XCTAssertEqual(result["Generic Button 12"], .rightThumbstickButton)
+
+    let sticks = generic(buttons: ["Button 1"], directions: ["Axis Pair 10", "Axis Pair 2"])
+    XCTAssertEqual(sticks["Axis Pair 2"], .dpad)
+    XCTAssertEqual(sticks["Axis Pair 10"], .leftThumbstick)
+  }
+
+  func testAnAliasedElementIsResolvedByItsBestName() {
+    XCTAssertEqual(PhysicalProfileMapping(table: .gameCube).preferredName(amongAliases: ["Button 1", "Button A"]), "Button A")
+    XCTAssertEqual(PhysicalProfileMapping(table: .gameCube).preferredName(amongAliases: ["Button 7", "L2"]), "L2")
+    XCTAssertEqual(PhysicalProfileMapping(table: .gameCube).preferredName(amongAliases: ["Button 10", "Button 2"]), "Button 2")
+    XCTAssertEqual(PhysicalProfileMapping(table: .gameCube).preferredName(amongAliases: ["Fire"]), "Fire")
+
+    // "Button A" and "Button 1" are one element: with the alias dropped, "Button 2" is B.
+    let names = [["Button A", "Button 1"], ["Button 2"], ["Button 3"]]
+      .compactMap { PhysicalProfileMapping(table: .gameCube).preferredName(amongAliases: $0) }
+    let result = generic(buttons: names, directions: ["Direction Pad"])
+    XCTAssertEqual(result["Button A"], .buttonA)
+    XCTAssertEqual(result["Button 2"], .buttonB)
+    XCTAssertEqual(result["Button 3"], .buttonX)
+  }
+
+  func testDPadStickStartsPartialAndGrowsToFull() {
+    XCTAssertEqual(dpadStick(x: 1).x, 0.4, accuracy: 0.001, "a tap is a nudge")
+    XCTAssertEqual(dpadStick(x: 1, xHeld: 0.1).x, 0.7, accuracy: 0.001)
+    XCTAssertEqual(dpadStick(x: 1, xHeld: 0.2).x, 1, accuracy: 0.001)
+    XCTAssertEqual(dpadStick(x: 1, xHeld: 5).x, 1, accuracy: 0.001, "never past full")
+    XCTAssertEqual(dpadStick(x: -1, xHeld: 5).x, -1, accuracy: 0.001)
+  }
+
+  func testDPadStickAtRestIsCentered() {
+    XCTAssertEqual(dpadStick(x: 0, xHeld: 5, y: 0, yHeld: 5), .zero)
+  }
+
+  func testDPadStickAxesRampOnTheirOwn() {
+    let position = dpadStick(x: 0, y: -1, yHeld: 0.2)
+    XCTAssertEqual(position.x, 0)
+    XCTAssertEqual(position.y, -1, accuracy: 0.001)
+  }
+
+  func testDPadStickDiagonalStaysOnTheUnitCircle() {
+    let position = dpadStick(x: 1, xHeld: 1, y: 1, yHeld: 1)
+    XCTAssertEqual(position.x, 0.7071, accuracy: 0.001)
+    XCTAssertEqual(position.y, 0.7071, accuracy: 0.001)
+    // The axis pressed second is still ramping while the first is full.
+    let late = dpadStick(x: 1, xHeld: 1, y: 1, yHeld: 0)
+    // The Swift emulator scales only when the combined deflection exceeds one.
+    let length = sqrt(1.0 + 0.4 * 0.4)
+    XCTAssertEqual(late.x, 1 / length, accuracy: 0.001)
+    XCTAssertEqual(late.y, 0.4 / length, accuracy: 0.001)
   }
 }

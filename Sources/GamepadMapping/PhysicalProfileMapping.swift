@@ -162,13 +162,45 @@ public struct PhysicalProfileMapping: Sendable, Equatable {
         return result
     }
 
-    /// "Button 2" before "Button 10"; other names alphabetically, after the numbered ones.
+    /// Bare button numbers first, then other names ordered by prefix and trailing number.
     private static func naturalOrder(_ lhs: String, _ rhs: String) -> Bool {
-        switch (buttonIndex(lhs), buttonIndex(rhs)) {
-        case let (left?, right?): return left != right ? left < right : lhs < rhs
-        case (_?, nil): return true
-        case (nil, _?): return false
-        case (nil, nil): return lhs < rhs
+        naturalKey(lhs) < naturalKey(rhs)
+    }
+
+    /// Sort key for ``naturalOrder``: bare "Button n" names first, then by prefix and
+    /// trailing number, so "Generic Button 2" comes before "Generic Button 10".
+    private struct NaturalKey: Comparable {
+        var group: Int
+        var prefix: String
+        var index: Int
+        var name: String
+
+        static func < (lhs: NaturalKey, rhs: NaturalKey) -> Bool {
+            (lhs.group, lhs.prefix, lhs.index, lhs.name) < (rhs.group, rhs.prefix, rhs.index, rhs.name)
+        }
+    }
+
+    private static func naturalKey(_ name: String) -> NaturalKey {
+        if let index = buttonIndex(name) { return NaturalKey(group: 0, prefix: "", index: index, name: name) }
+        let normalized = normalize(name)
+        let digits = normalized.reversed().prefix { $0.isASCII && $0.isNumber }
+        if let index = Int(String(digits.reversed())) {
+            return NaturalKey(group: 1, prefix: String(normalized.dropLast(digits.count)), index: index, name: name)
+        }
+        return NaturalKey(group: 1, prefix: normalized, index: -1, name: name)
+    }
+
+    /// Selects one name for a physical element before assigning positional slots.
+    public func preferredName(amongAliases aliases: [String], pad: PadFamily = .generic) -> String? {
+        func rank(_ name: String) -> Int {
+            if table.standardNames[Self.normalize(name)] != nil { return 0 }
+            return input(forElementNamed: name, pad: pad) == nil ? 2 : 1
+        }
+
+        return aliases.min { lhs, rhs in
+            let left = rank(lhs)
+            let right = rank(rhs)
+            return left == right ? Self.naturalOrder(lhs, rhs) : left < right
         }
     }
 

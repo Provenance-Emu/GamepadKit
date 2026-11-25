@@ -66,9 +66,9 @@ let binaryTargets: [Target] = binaryRelease.map { release in
 let package = Package(
     name: "GamepadKit",
     platforms: [
-        .iOS("17.4"),
-        .tvOS("17.4"),
-        .macCatalyst("17.4"),
+        .iOS(.v17),
+        .tvOS(.v17),
+        .macCatalyst(.v17),
         .macOS(.v14),
     ],
     // Product names are the same in both modes, so consumers never change.

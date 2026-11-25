@@ -6,6 +6,45 @@ import XCTest
 final class PhysicalProfileControllerTests: XCTestCase {
     // MARK: iFly
 
+    func testUnnamedPadIsNamedByItsProductCategory() {
+        let hid = FakeController(vendorName: nil, productCategory: "HID")
+        let unknown = FakeController(vendorName: nil, productCategory: "")
+        XCTAssertEqual(PhysicalProfileController(wrapping: hid, configuration: AppConfigurations.iCube)
+            .vendorName, "HID Gamepad")
+        XCTAssertEqual(PhysicalProfileController(wrapping: unknown, configuration: AppConfigurations.iCube)
+            .vendorName, "Unknown Controller")
+    }
+
+    func testAliasedButtonKeepsItsNamedInput() throws {
+        let base = FakeController(vendorName: nil, productCategory: "HID",
+                                  buttons: ["Button A", "Button 2"], dpads: ["Direction Pad"])
+        base.profile.fakeButtons["Button 1"] = try XCTUnwrap(base.profile.fakeButtons["Button A"])
+        let wrapper = PhysicalProfileController(wrapping: base, configuration: AppConfigurations.iCube)
+        XCTAssertEqual(wrapper.bindings, ["Button A": .buttonA, "Button 2": .buttonB, "Direction Pad": .dpad])
+        base.press("Button A")
+        XCTAssertEqual(wrapper.extendedGamepad?.buttonA.isPressed, true)
+        XCTAssertEqual(wrapper.extendedGamepad?.buttonB.isPressed, false)
+    }
+
+    func testBindingsResolverReplacesTheMappingForWrappingAndBinding() {
+        let base = FakeController(vendorName: "Odd Pad", productCategory: "HID",
+                                  buttons: ["Fire", "Jump"], dpads: ["Stick"])
+        var configuration = AppConfigurations.iCube
+        XCTAssertEqual(PhysicalProfileController(wrapping: base, configuration: configuration).bindings["Jump"],
+                       .buttonB, "the mapping alone takes Jump by position")
+        configuration.bindingsResolver = { controller, family in
+            XCTAssertEqual(controller.vendorName, "Odd Pad")
+            XCTAssertEqual(family, .generic)
+            return ["Fire": .buttonA, "Jump": .menu, "Stick": .dpad]
+        }
+        XCTAssertTrue(PhysicalProfileController.isNeeded(for: base, configuration: configuration))
+        let wrapper = PhysicalProfileController(wrapping: base, configuration: configuration)
+        XCTAssertEqual(wrapper.bindings, ["Fire": .buttonA, "Jump": .menu, "Stick": .dpad])
+        XCTAssertEqual(wrapper.pauseTrigger, .button(.menu), "the pause policy reads the resolver's bindings")
+        base.press("Fire")
+        XCTAssertEqual(wrapper.extendedGamepad?.buttonA.isPressed, true)
+    }
+
     func testIFlyShouldersDriveTheTriggersOnAPadWithoutThem() throws {
         let pad = FakeController.snes()
         let wrapper = PhysicalProfileController(wrapping: pad, configuration: AppConfigurations.iFly())
