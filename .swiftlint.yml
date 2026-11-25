@@ -1,0 +1,19 @@
+# The ported test files are near-verbatim copies of each app's own tests, kept that
+# way so they can be diffed against the originals; they are not reformatted.
+included:
+  - Sources
+  - Tests
+excluded:
+  - Tests/GamepadMappingTests/IFlyMappingTests.swift
+  - Tests/GamepadMappingTests/ProvenanceMappingTests.swift
+  - Tests/GamepadMappingTests/ICubeMappingTests.swift
+  - Tests/GamepadKitTests/ICubeSynthesizedElementTests.swift
+identifier_name:
+  excluded: [x, y]
+line_length:
+  warning: 120
+  ignores_comments: true
+trailing_comma:
+  mandatory_comma: false
+cyclomatic_complexity:
+  ignores_case_statements: true
