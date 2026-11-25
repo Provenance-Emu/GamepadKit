@@ -1,7 +1,7 @@
 # GamepadKit: one controller package for iFly, iCube and Provenance
 
-Status: proposal with a working first cut. Local only. No repository exists, nothing is
-pushed, and none of the three apps depends on it. Written 2026-11-24.
+Status: proposal with a working first cut, in a local git repository. It has no remote,
+nothing is pushed, and none of the three apps depends on it. Written 2026-11-24.
 
 ## Recommendation
 

@@ -1,7 +1,7 @@
 # GamepadKit
 
-Controller handling shared by Provenance, iFly and iCube. A local first cut: not yet a
-repository, and no app depends on it. Read [docs/PROPOSAL.md](docs/PROPOSAL.md) first.
+Controller handling shared by Provenance, iFly and iCube. A first cut in a local git
+repository: it has no remote yet, and no app depends on it. Read [docs/PROPOSAL.md](docs/PROPOSAL.md) first.
 
 Two modules:
 
