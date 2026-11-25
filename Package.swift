@@ -20,7 +20,7 @@ import PackageDescription
 // `main` always builds from source. The release workflow fills this in on the tagged
 // commit only, so it stays `nil` on every branch.
 // Set PV_BUILD_FROM_SOURCE=1 to build a tagged version from source instead.
-let binaryRelease: (version: String, checksums: [String: String])? = nil
+let binaryRelease: (version: String, checksums: [String: String])? = ("0.3.0", ["GamepadKit": "00f3086d54077df8a4da185be93c5ca9bf4e465a05e9f9f39c0b2ce00684f0d0", "GamepadMapping": "0a75dbad8a1d6313c1ddc0813649c54bdeeaac6978482d789008ce1664420600"])
 
 let environment = ProcessInfo.processInfo.environment
 let buildFromSource = binaryRelease == nil || environment["PV_BUILD_FROM_SOURCE"] != nil
