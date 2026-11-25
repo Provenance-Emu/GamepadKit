@@ -2,7 +2,7 @@ import Foundation
 
 /// When an app keeps its UI above a clamshell controller: one the phone docks into
 /// upright, so the pad folds up over the bottom of the screen (8BitDo FlipPad and similar).
-public enum ClamshellDockMode: String, CaseIterable, Sendable {
+@frozen public enum ClamshellDockMode: String, CaseIterable, Sendable {
     /// Move the UI up when a pad from ``ClamshellDockCatalog`` is connected.
     case automatic
     /// Always move the UI up in portrait (a pad the catalog does not know).
@@ -12,7 +12,7 @@ public enum ClamshellDockMode: String, CaseIterable, Sendable {
 
 /// Clamshell controllers recognised by name. Pure strings, so it is testable
 /// without a controller.
-public enum ClamshellDockCatalog {
+@frozen public enum ClamshellDockCatalog {
     public struct Entry: Sendable, Equatable {
         /// Lowercased text the controller's name contains.
         public let nameContains: String

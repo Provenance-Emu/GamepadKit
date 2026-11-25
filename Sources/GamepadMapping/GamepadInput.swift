@@ -3,7 +3,7 @@ import Foundation
 /// One input of the extended gamepad a physical input profile is mapped onto.
 ///
 /// The raw values are stable: apps log them and may store them.
-public enum GamepadInput: String, CaseIterable, Sendable {
+@frozen public enum GamepadInput: String, CaseIterable, Sendable {
     case dpad, leftThumbstick, rightThumbstick
     case buttonA, buttonB, buttonX, buttonY
     case leftShoulder, rightShoulder, leftTrigger, rightTrigger

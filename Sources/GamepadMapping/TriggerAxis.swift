@@ -3,7 +3,7 @@ import Foundation
 /// Turns a raw trigger-axis reading into a trigger value. A trigger axis rests at 0
 /// (range 0...1) on some pads and at -1 (range -1...1) on others; once it has reported
 /// a negative value it is known to be the second kind.
-public enum TriggerAxis {
+@frozen public enum TriggerAxis {
     /// A trigger axis reporting below this is known to rest at -1.
     public static let bipolarThreshold: Float = -0.05
     /// A trigger driven from an axis counts as pressed above this value (0...1).

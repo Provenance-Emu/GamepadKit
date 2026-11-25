@@ -1,7 +1,7 @@
 import Foundation
 
 /// What opens an app's pause menu on a synthesized pad.
-public enum PauseTrigger: Equatable, Sendable {
+@frozen public enum PauseTrigger: Equatable, Sendable {
     /// The pad's Home button.
     case home
     /// Every input in the set held at once.
@@ -42,7 +42,7 @@ public enum PauseTrigger: Equatable, Sendable {
 }
 
 /// How an app picks the ``PauseTrigger`` of a synthesized pad.
-public enum PausePolicy: Sendable, Equatable {
+@frozen public enum PausePolicy: Sendable, Equatable {
     /// Home when the pad has one, otherwise Select + Start held together; nil when it
     /// has neither. Provenance and iFly.
     ///
@@ -75,7 +75,7 @@ public enum PausePolicy: Sendable, Equatable {
 /// when the input that completes it goes down, and again only after every one of its
 /// inputs has been released.
 public struct PauseTriggerTracker: Sendable {
-    public enum Outcome: Equatable, Sendable {
+    @frozen public enum Outcome: Equatable, Sendable {
         /// Not part of a fired trigger: pass the transition on.
         case forward
         /// This press completed the trigger.

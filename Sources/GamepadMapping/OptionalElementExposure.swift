@@ -3,7 +3,7 @@ import Foundation
 /// When a synthesized gamepad reports one of its optional buttons (Options, Home).
 /// Apps key pause routes, default bindings and "missing button" UI off whether the
 /// element is nil, and they disagree about what it should say.
-public enum OptionalElementExposure: Sendable, Equatable {
+@frozen public enum OptionalElementExposure: Sendable, Equatable {
     /// Always reported, bound or not.
     case always
     /// Reported when the physical pad has it.

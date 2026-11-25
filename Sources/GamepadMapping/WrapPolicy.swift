@@ -36,7 +36,7 @@ public struct WrapCandidate: Sendable, Equatable {
 /// gamepad, usable bindings (a direction input and a face button) and not a remote:
 /// a Siri Remote has a direction pad and buttons too, and a wrapper would turn it
 /// into a player.
-public enum WrapPolicy: Sendable, Equatable {
+@frozen public enum WrapPolicy: Sendable, Equatable {
     /// Any pad that passes the common test. iFly.
     case anyUsablePad
     /// As ``anyUsablePad``, but a generic pad that has a micro profile must also have

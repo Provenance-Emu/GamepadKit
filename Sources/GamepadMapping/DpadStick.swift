@@ -2,7 +2,7 @@ import Foundation
 
 /// What a pad's D-pad drives on the synthesized gamepad. For pads with a D-pad and no
 /// stick (8BitDo FlipPad and similar) in games that read only the stick.
-public enum DpadMode: String, CaseIterable, Sendable {
+@frozen public enum DpadMode: String, CaseIterable, Sendable {
     /// The D-pad, as on the pad.
     case dpad
     /// The left stick only; the synthesized D-pad stays at rest.
@@ -29,7 +29,7 @@ public enum DpadMode: String, CaseIterable, Sendable {
 }
 
 /// How far a held direction pushes the emulated stick.
-public enum DpadStickResponse: Sendable, Equatable {
+@frozen public enum DpadStickResponse: Sendable, Equatable {
     /// Full deflection at once.
     case full
     /// Starts at `start` (0...1) and reaches full deflection after `duration` seconds
