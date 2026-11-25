@@ -55,6 +55,10 @@ public struct PhysicalProfileConfiguration: Sendable {
     /// category; nil leaves it unnamed. Apps key remaps and mapping files on the
     /// vendor name, and every unnamed pad would otherwise share one entry.
     public var unnamedPadName: (@Sendable (_ productCategory: String) -> String)?
+    /// The wrapper's `vendorName`, in place of the pad's own name and of
+    /// ``unnamedPadName``; nil (the default) uses those. For an app whose core already
+    /// names every pad (iCube's `MFiController::NameFor`), so the two names match.
+    public var padName: (@Sendable (GCController) -> String?)?
     /// D-pad-as-stick emulation; nil (the default) leaves the D-pad a D-pad, exactly as
     /// without the feature.
     public var dpadStick: DpadStickSettings?
@@ -82,6 +86,7 @@ public struct PhysicalProfileConfiguration: Sendable {
         unnamedPadName: (@Sendable (_ productCategory: String) -> String)? = {
             PhysicalProfileMapping.fallbackVendorName(productCategory: $0)
         },
+        padName: (@Sendable (GCController) -> String?)? = nil,
         dpadStick: DpadStickSettings? = nil,
         isRemote: (@Sendable (GCController) -> Bool)? = nil,
         bindingsResolver: (@Sendable (GCController, PadFamily) -> [String: GamepadInput])? = nil,
@@ -99,6 +104,7 @@ public struct PhysicalProfileConfiguration: Sendable {
         self.buttonHandlerOrder = buttonHandlerOrder
         self.playerIndexStorage = playerIndexStorage
         self.unnamedPadName = unnamedPadName
+        self.padName = padName
         self.dpadStick = dpadStick
         self.isRemote = isRemote
         self.bindingsResolver = bindingsResolver

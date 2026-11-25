@@ -26,6 +26,17 @@ final class PhysicalProfileControllerTests: XCTestCase {
         XCTAssertEqual(wrapper.extendedGamepad?.buttonB.isPressed, false)
     }
 
+    func testPadNameOverridesThePadsOwnNameAndTheUnnamedFallback() {
+        var configuration = AppConfigurations.iCube
+        configuration.padName = { "Core name for \($0.productCategory)" }
+        let named = FakeController(vendorName: "Odd Pad", productCategory: "HID")
+        let unnamed = FakeController(vendorName: nil, productCategory: "HID")
+        XCTAssertEqual(PhysicalProfileController(wrapping: named, configuration: configuration).vendorName,
+                       "Core name for HID")
+        XCTAssertEqual(PhysicalProfileController(wrapping: unnamed, configuration: configuration).vendorName,
+                       "Core name for HID")
+    }
+
     func testBindingsResolverReplacesTheMappingForWrappingAndBinding() {
         let base = FakeController(vendorName: "Odd Pad", productCategory: "HID",
                                   buttons: ["Fire", "Jump"], dpads: ["Stick"])

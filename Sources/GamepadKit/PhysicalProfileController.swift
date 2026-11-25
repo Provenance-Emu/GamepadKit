@@ -332,10 +332,12 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
     override public var extendedGamepad: GCExtendedGamepad? { synthesized }
     override public var microGamepad: GCMicroGamepad? { nil }
     override public var physicalInputProfile: GCPhysicalInputProfile { base.physicalInputProfile }
-    /// Never nil when the configuration names unnamed pads
-    /// (``PhysicalProfileConfiguration/unnamedPadName``).
+    /// The configuration's ``PhysicalProfileConfiguration/padName`` when it has one;
+    /// otherwise the pad's own name, and never nil when the configuration names
+    /// unnamed pads (``PhysicalProfileConfiguration/unnamedPadName``).
     override public var vendorName: String? {
-        base.vendorName ?? configuration.unnamedPadName?(base.productCategory)
+        if let padName = configuration.padName { return padName(base) }
+        return base.vendorName ?? configuration.unnamedPadName?(base.productCategory)
     }
 
     override public var productCategory: String { base.productCategory }
