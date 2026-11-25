@@ -110,13 +110,18 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
         var buttonNames: [String] = []
         var directionNames: [String] = []
         var axisNames: [String] = []
+        // A direction element's other names bind nothing, but still mark the buttons
+        // named after them ("Hat Switch Up") as its halves.
+        var directionAliases: [String] = []
         for aliases in groups.values {
             guard let name = mapping.preferredName(amongAliases: aliases.map { $0.key }, pad: pad),
                   let element = aliases.first?.value else { continue }
             elementNames.append(name)
             switch element {
             case is GCControllerButtonInput: buttonNames.append(name)
-            case is GCControllerDirectionPad: directionNames.append(name)
+            case is GCControllerDirectionPad:
+                directionNames.append(name)
+                directionAliases.append(contentsOf: aliases.map { $0.key }.filter { $0 != name })
             case is GCControllerAxisInput: axisNames.append(name)
             default: break
             }
@@ -126,7 +131,8 @@ public final class PhysicalProfileController: GCController, @unchecked Sendable 
             elementNames: elementNames,
             buttonNames: buttonNames,
             directionNames: directionNames,
-            axisNames: axisNames
+            axisNames: axisNames,
+            directionAliases: directionAliases
         )
     }
 

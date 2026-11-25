@@ -113,10 +113,14 @@ public struct PhysicalProfileMapping: Sendable, Equatable {
     ///   - buttonNames: the keys of `physicalInputProfile.buttons`.
     ///   - directionNames: the keys of `physicalInputProfile.dpads`.
     ///   - axisNames: the keys of `physicalInputProfile.axes`.
+    ///   - directionAliases: other names of the direction elements, when the caller
+    ///     passes one name per element. They bind nothing; they only mark buttons
+    ///     named after them ("Hat Switch Up") as halves of a direction element.
     public func genericBindings(
         buttonNames: [String],
         directionNames: [String],
-        axisNames: [String] = []
+        axisNames: [String] = [],
+        directionAliases: [String] = []
     ) -> [String: GamepadInput] {
         // Names. A direction element takes only a direction input and a button only a
         // button input, so a button that happens to be called "Hat" cannot leave the
@@ -138,7 +142,7 @@ public struct PhysicalProfileMapping: Sendable, Equatable {
             taken.insert(input)
         }
 
-        let directionPrefixes = directionNames.map { Self.normalize($0) + " " }
+        let directionPrefixes = (directionNames + directionAliases).map { Self.normalize($0) + " " }
         let leftover = buttonNames.filter { name in
             guard result[name] == nil, !directions.contains(name) else { return false }
             let normalized = Self.normalize(name)
@@ -211,15 +215,22 @@ public struct PhysicalProfileMapping: Sendable, Equatable {
     ///   - buttonNames: the keys of `physicalInputProfile.buttons`.
     ///   - directionNames: the keys of `physicalInputProfile.dpads`.
     ///   - axisNames: the keys of `physicalInputProfile.axes`.
+    ///   - directionAliases: see ``genericBindings(buttonNames:directionNames:axisNames:directionAliases:)``.
     public func resolveBindings(
         pad: PadFamily,
         elementNames: [String],
         buttonNames: [String],
         directionNames: [String],
-        axisNames: [String]
+        axisNames: [String],
+        directionAliases: [String] = []
     ) -> [String: GamepadInput] {
         guard pad == .generic else { return bindings(forElementNames: elementNames, pad: pad) }
-        return genericBindings(buttonNames: buttonNames, directionNames: directionNames, axisNames: axisNames)
+        return genericBindings(
+            buttonNames: buttonNames,
+            directionNames: directionNames,
+            axisNames: axisNames,
+            directionAliases: directionAliases
+        )
     }
 
     // MARK: Usability

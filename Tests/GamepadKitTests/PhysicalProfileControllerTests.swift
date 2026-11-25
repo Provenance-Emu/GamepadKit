@@ -26,6 +26,15 @@ final class PhysicalProfileControllerTests: XCTestCase {
         XCTAssertEqual(wrapper.extendedGamepad?.buttonB.isPressed, false)
     }
 
+    func testHalvesOfAnAliasedDirectionElementAreNeverTakenByPosition() throws {
+        let base = FakeController(vendorName: nil, productCategory: "HID",
+                                  buttons: ["Fire", "Hat Switch Up", "Hat Switch Down"], dpads: ["Direction Pad"])
+        base.profile.fakeDpads["Hat Switch"] = try XCTUnwrap(base.profile.fakeDpads["Direction Pad"])
+        let wrapper = PhysicalProfileController(wrapping: base, configuration: AppConfigurations.provenance)
+        XCTAssertEqual(wrapper.bindings, ["Direction Pad": .dpad, "Fire": .buttonA],
+                       "the D-pad binds under its standard name, and its halves stay out of the button slots")
+    }
+
     func testPadNameOverridesThePadsOwnNameAndTheUnnamedFallback() {
         var configuration = AppConfigurations.iCube
         configuration.padName = { "Core name for \($0.productCategory)" }
