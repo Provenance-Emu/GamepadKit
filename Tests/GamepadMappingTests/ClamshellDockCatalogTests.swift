@@ -6,7 +6,7 @@ final class ClamshellDockCatalogTests: XCTestCase {
         let known = ClamshellDockCatalog.coverPoints(
             mode: .automatic, storedMillimetres: 0, controllerNames: [nil, "8BitDo FlipPad"]
         )
-        XCTAssertEqual(known, (38 * ClamshellDockCatalog.pointsPerMillimetre).rounded())
+        XCTAssertEqual(known, (96 * ClamshellDockCatalog.pointsPerMillimetre).rounded())
         XCTAssertEqual(
             ClamshellDockCatalog.coverPoints(mode: .automatic, storedMillimetres: 0, controllerNames: ["Xbox"]), 0
         )
