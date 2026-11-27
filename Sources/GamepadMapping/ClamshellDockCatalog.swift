@@ -28,13 +28,13 @@ import Foundation
     /// Used when the player turns the dock on by hand, or an entry has no better figure.
     public static let defaultCoverMillimetres: Double = 38
 
-    /// 8BitDo FlipPad and GameSir Pocket Taco. The FlipPad height is from a real pad
-    /// on an iPhone 16 Pro Max: 38 mm left 2 to 2.5 inches of the app under it, so
-    /// 96 mm, well over half the screen. The Pocket Taco height is still an estimate,
-    /// as is every name fragment; correct them when one is measured.
+    /// 8BitDo FlipPad and GameSir Pocket Taco. The FlipPad height was set by its owner
+    /// against a real pad in iFly (2026-11-27): 54 mm. An earlier 96 mm added a measured
+    /// gap to a 38 mm estimate and put the app far above the pad. The Pocket Taco height
+    /// is still an estimate, as is every name fragment; correct them when one is measured.
     public static let entries: [Entry] = [
-        Entry(nameContains: "flippad", coverMillimetres: 96),
-        Entry(nameContains: "flip pad", coverMillimetres: 96),
+        Entry(nameContains: "flippad", coverMillimetres: 54),
+        Entry(nameContains: "flip pad", coverMillimetres: 54),
         Entry(nameContains: "pocket taco", coverMillimetres: 38),
         Entry(nameContains: "pockettaco", coverMillimetres: 38)
     ]
