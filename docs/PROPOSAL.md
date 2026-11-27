@@ -1,6 +1,6 @@
 # GamepadKit: one controller package for iFly, iCube and Provenance
 
-Updated 2026-11-25. Adoption status: 0.3.0 is the first binary release, and the three
+Updated 2026-11-26. Adoption status: 0.3.0 is the first binary release, and the three
 apps adopt it in one pull request each (section 3 was written before that and gives the
 order first proposed). `0.2.0` is a source-only tag from before the release workflow.
 
@@ -222,7 +222,7 @@ diagonal. Dolphin’s nine profile-loader tests remain with its C++ binding and 
 
 | Candidate | Today | Recommendation |
 |---|---|---|
-| **Case / clamshell controllers** | iFly: `ClamshellDockCatalog` (FlipPad, Pocket Taco, by name, with cover height) and `ClamshellScreenCover`. Provenance: `CaseControllerDetector` (380 lines; Pocket Taco, Soolra, passive cases matched through skins). Two catalogs of the same hardware. | **Next after (b).** Merge the two catalogs in layer (a), keyed by name with an optional cover height. Move `ClamshellScreenCover` into a small UIKit target once a FlipPad has been measured; it is untested on hardware today. |
+| **Case / clamshell controllers** | iFly: `ClamshellDockCatalog` (FlipPad, Pocket Taco, by name, with cover height) and `ClamshellScreenCover`. Provenance: `CaseControllerDetector` (380 lines; Pocket Taco, Soolra, passive cases matched through skins). Two catalogs of the same hardware. | **Next after (b).** Merge the two catalogs in layer (a), keyed by name with an optional cover height. The FlipPad catalog now uses the measured 96 mm cover height (#3). Validate the resulting screen layout on hardware before moving `ClamshellScreenCover` into a UIKit target. |
 | **Pause triggers** | Provenance: `PauseMenuTrigger` and `PauseMenuTriggerMonitor` (touchpad click, share button, L3 + R3, Select + Start, Home, lone Menu; user-selectable). iCube: `PauseGestureTracker` (345 lines, shoulder + Menu gestures, Menu press ownership). iFly: fixed bindings in `GameControllerManager`. | **Yes, as its own step.** The pure part (the trigger enum and the tracker here) is already in layer (a) and should grow to cover Provenance's list. The monitors stay per app until two apps want the same one. This is where "menu handling on tvOS" belongs. |
 | **tvOS Menu handling** | Three different answers to "who owns a Menu press": iCube's `MenuPressOwnership`, Provenance's monitor, iFly's hard-bound Menu pause. | **Share the pure ownership rule first.** Port iCube’s `MenuPressOwnership` into layer (a) after checking system Menu behavior on Apple TV. Each app keeps its view-controller plumbing. |
 | **Gyro and touchpad** | Provenance: `GyroMouseAdapter` (403 lines, tested), `ControllerPointerRouter`, `ControllerMotionRouter`. iCube: `GyroPointerMath` (pure), `PointerSource`, `RemotePointerBinding`. | **Share the maths only.** Dead zone, low-pass and accumulate-to-cursor are pure and duplicated; they fit a `GamepadMotion` target with no GameController import. The adapters are bound to each app's core interface (`MouseResponder`, Wii IR) and stay where they are. |
@@ -309,9 +309,9 @@ GamepadKit/
   Tests/GamepadKitTests/        iCube's element tests, the wrapper end to end, the three app configurations
 ```
 
-Xcode’s Swift toolchain passed 127 host tests with `xcrun swift test` (99 mapping,
-28 GameController). The `GamepadKit` scheme, including its mapping dependency,
-built for iOS Simulator, tvOS Simulator, and Mac Catalyst. The manifest declares
+Xcode’s Swift toolchain passed 130 host tests with `xcrun swift test` (99 mapping,
+31 GameController). The earlier platform build of the `GamepadKit` scheme and its
+mapping dependency succeeded for iOS Simulator, tvOS Simulator, and Mac Catalyst. The manifest declares
 Swift 6 and the deployment floors listed above. The wrapper tests use fake controllers.
 Hardware validation is pending.
 
